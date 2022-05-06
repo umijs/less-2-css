@@ -9,9 +9,17 @@ need it.
 
 ## Usage
 
+Directly use it without install it into your project:
+
+```shell
+$ pnpx @ken20001207/less-2-css ./src --write
 ```
-pnpm build
-pnpm start /path/to/your/project
+
+Install as a devDependency and use it in your project:
+
+```shell
+$ pnpm i @ken20001207/less-2-css -D
+$ pnpx less-2-css ./src --write
 ```
 
 ## How it works
