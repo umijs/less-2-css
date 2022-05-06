@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import * as fs from 'fs';
 import { Dirent, readdirSync, writeFileSync } from 'fs';
 import { readFile } from 'fs/promises';
@@ -5,6 +7,7 @@ import { resolve } from 'path';
 import postcss from "postcss";
 // @ts-ignore
 import { validate } from 'csstree-validator';
+import * as process from "process";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -12,18 +15,35 @@ async function main() {
     console.error("Please provide a project path.");
     return;
   }
-  const unnecessaryLessFiles = await getUnnecessaryLessFiles(args[0]);
-  await modifyImport({ dir: args[0], unnecessaryLessFiles });
-  unnecessaryLessFiles.map(f => {
-    fs.renameSync(f, f.replace(/\.less$/, '.css'));
-  });
+  const path = resolve(args[0]);
+  const unnecessaryLessFiles = await getUnnecessaryLessFiles(path);
+
+  if(unnecessaryLessFiles.length > 0) {
+    console.info(`Found ${unnecessaryLessFiles.length} unnecessary less files.`);
+  } else {
+    console.info("No unnecessary less files found.");
+  }
+
+  if(args.length > 1 && args[1] === '--write') {
+    await modifyImport({ dir: path, unnecessaryLessFiles });
+    unnecessaryLessFiles.map(f => {
+      fs.renameSync(f, f.replace(/\.less$/, '.css'));
+    });
+    console.info('🎉 Automatically rename all unnecessary less files to css!');
+  }
 }
 
 async function getUnnecessaryLessFiles(dir: string): Promise<string[]> {
   const candidates: string[] = [];
-  const a = readdirSync(dir, { withFileTypes: true });
+  let dirs: Dirent[] = [];
+  try {
+   dirs = readdirSync(dir, { withFileTypes: true });
+  } catch (e) {
+    console.error('💥 Cannot read directory:', dir);
+    process.exit(1);
+  }
   const rootLength = dir.split('/').length - 1;
-  for (const file of a) {
+  for (const file of dirs) {
     if (file.isDirectory()) {
       await checkLessFilesInDirectory({
         rootLength,
@@ -38,7 +58,6 @@ async function getUnnecessaryLessFiles(dir: string): Promise<string[]> {
         baseName: dir,
         file,
         candidates,
-        verbose: true,
       });
     }
   }
@@ -82,11 +101,10 @@ interface CheckLessFileOptions {
   baseName: string
   file: Dirent
   candidates: string[]
-  verbose?: boolean
 }
 
 async function checkLessFile(opts: CheckLessFileOptions) {
-  const { verbose, baseName, file, candidates } = opts;
+  const { baseName, file, candidates } = opts;
   const absPath = resolve(baseName, file.name);
   if (!file.isFile() || !file.name.endsWith(".less")) {
     return
@@ -97,14 +115,16 @@ async function checkLessFile(opts: CheckLessFileOptions) {
     const res = await postcss([require('postcss-nested')]).process(data, { from: absPath });
     const v = validate(res.css);
     if (v.length > 0) {
-      if (verbose) console.info('❌', absPath);
+      console.info('❌', absPath);
+      console.info('This file cannot be renamed to css. \n');
       return;
     }
     candidates.push(resolve(baseName, file.name));
-    if (verbose) console.info('✅', absPath);
+    console.info('✅', absPath);
+    console.info('This file can be safely renamed to css.\n');
   } catch (err) {
-    console.log(err);
-    if (verbose) console.info('❌', absPath);
+    console.info('❌', absPath);
+    console.info('This file cannot be renamed to css.\n');
   }
 }
 

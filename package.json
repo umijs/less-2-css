@@ -7,6 +7,9 @@
     "build": "pnpm tsc",
     "start": "node ./dist/index.js"
   },
+  "bin": {
+    "less-2-css": "./dist/index.js"
+  },
   "author": "",
   "license": "ISC",
   "devDependencies": {
