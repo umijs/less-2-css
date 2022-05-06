@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import * as fs from 'fs';
 import { Dirent, readdirSync, writeFileSync } from 'fs';
 import { readFile } from 'fs/promises';
